@@ -1,0 +1,5 @@
+datas/ai_train1801.csv datas/boston_housing.data datas/breast-cancer-wisconsin.data datas/crx.data datas/data_lr.model datas/data_ss.model datas/household_power_consumption_1000.txt datas/iris.data datas/round1_train_countfeatures.csv datas/round1_train_countfeatures_test.csv datas/winequality-red.csv datas/winequality-white.csv
+*.csv
+*.ipynb_checkpoints
+*.csv
+*.data *.model
