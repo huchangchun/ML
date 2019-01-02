@@ -5,7 +5,7 @@ import numpy as np
 def loadDataSet():
     dataMat = []
     labelMat = []
-    fr = open('testSet.txt')
+    fr = open('datas/testSet.txt')
     for line in  fr.readlines():
         lineArr = line.strip().split()
         dataMat.append([1.0, float(lineArr[0]), float(lineArr[1])])
@@ -52,7 +52,9 @@ def plotBestFit(weights):
     ax.scatter(xcord2, ycord2, s=30, c='green')
      
     x = np.arange(-3.0, 3.0, 0.1) #x为numpy.arange格式，并且以0.1为步长从-3.0到3.0切分。
-    #拟合曲线为0 = w0*x0+w1*x1+w2*x2, 故x2 = (-w0*x0-w1*x1)/w2, x0为1,x1为x, x2为y,故有
+    #拟合曲线为0 = w0*x0+w1*x1+w2*x2, 
+    #在平面坐标系xy中，假设
+    #x0为1为截距项(b),x1为x, x2为y,所以故x2 = (-w0*x0-w1*x1)/w2,如果多个特征情况下，那就需要用到svm分割超平面了
     y = (-weights[0] - weights[1]*x)/weights[2]
     ax.plot(x, y)
     plt.xlabel('X1') ;plt.ylabel('X2');
@@ -106,7 +108,7 @@ def colicTest():
     4、读取测试的x,y
     5、用测试集测试准确率
     """
-    frTrain = open("horseColicTraining.txt",'r'); frTest=open("horseColicTest.txt")
+    frTrain = open("datas/horseColicTraining.txt",'r'); frTest=open("datas/horseColicTest.txt")
     trainSet =[]; trainLabels=[]
     for line in frTrain.readlines():
         currline = line.strip().split("\t")
@@ -134,9 +136,9 @@ def multiTest():
         errorSum += colicTest()
     print("after %d iterations the average error rate is :%f" %(numTests, errorSum/float(numTests)))
 
-#dataArr,labelMat = loadDataSet()
-#weights = stocGradAscent0(np.array(dataArr), labelMat)   
-#plotBestFit(weights)  #将numpy矩阵转换为数组
-#weights = stocGradAscent1(np.array(dataArr), labelMat)    
-#plotBestFit(weights)  #将numpy矩阵转换为数组
+dataArr,labelMat = loadDataSet()
+weights = stocGradAscent0(np.array(dataArr), labelMat)   
+plotBestFit(weights)  #将numpy矩阵转换为数组
+weights = stocGradAscent1(np.array(dataArr), labelMat)    
+plotBestFit(weights)  #将numpy矩阵转换为数组
 multiTest()
