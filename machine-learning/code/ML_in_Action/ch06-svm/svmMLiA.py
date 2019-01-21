@@ -59,7 +59,7 @@ def smoSimple(dataMatIn, classLabels, C, toler, maxIter):
     while (iter_num < maxIter):
         alphaPairsChanged = 0
         for i in range(m):
-            #步骤1：计算误差Ei
+            #步骤1：计算误差Ei u=sum(ai*yi*xi^Tx) + b
             fXi = float(np.multiply(alphas,labelMat).T*(dataMatrix*dataMatrix[i,:].T)) + b
             Ei = fXi - float(labelMat[i])
             #优化alpha，更设定一定的容错率。
@@ -79,10 +79,10 @@ def smoSimple(dataMatIn, classLabels, C, toler, maxIter):
                     L = max(0, alphas[j] + alphas[i] - C)
                     H = min(C, alphas[j] + alphas[i])
                 if L==H: print("L==H"); continue
-                #步骤3：计算eta
+                #步骤3：计算eta  = x1^Tx1 + x2^Tx2 -2x1^Tx2
                 eta = 2.0 * dataMatrix[i,:]*dataMatrix[j,:].T - dataMatrix[i,:]*dataMatrix[i,:].T - dataMatrix[j,:]*dataMatrix[j,:].T
                 if eta >= 0: print("eta>=0"); continue
-                #步骤4：更新alpha_j
+                #步骤4：更新alpha_j  
                 alphas[j] -= labelMat[j]*(Ei - Ej)/eta
                 #步骤5：修剪alpha_j
                 alphas[j] = clipAlpha(alphas[j],H,L)
@@ -105,7 +105,7 @@ def smoSimple(dataMatIn, classLabels, C, toler, maxIter):
         else: iter_num = 0
         print("迭代次数: %d" % iter_num)
     return b,alphas
-def showClassifer(dataMat, labelMat, w, b):
+def showClassifer(dataMatIn, labelMat, w, b):
     data_plus =[]
     data_minus = []
     for i in range(len(dataMatIn)):
@@ -135,7 +135,7 @@ def showClassifer(dataMat, labelMat, w, b):
             plt.scatter([x],[y], s=150,c='none', alpha=0.7, linewidths=1.5, edgecolors='red')
     plt.show()
 
-def get_w(dataMat, labelMat, alphas):
+def get_w(dataMat, labelMat, alphas):#(100,1) (100,2) (100,)
     alphas ,dataMat , labelMat = np.array(alphas), np.array(dataMat), np.array(labelMat)
     w = np.dot((np.tile(labelMat.reshape(1, -1).T, (1,2)) * dataMat).T, alphas)
     return w.tolist()
@@ -145,7 +145,7 @@ if __name__== "__main__":
     dataMatIn, classLabels = loadDataSet('testSet.txt')
     print(dataMatIn)
     print(classLabels)    
-    showDataSet(dataMatIn, classLabels)
+    #showDataSet(dataMatIn, classLabels)
     b,alphas = smoSimple(dataMatIn, classLabels, 0.6, 0.001, 40)
     w = get_w(dataMatIn, classLabels, alphas)
     showClassifer(dataMatIn,classLabels, w, b)

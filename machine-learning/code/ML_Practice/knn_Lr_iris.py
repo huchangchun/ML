@@ -17,7 +17,7 @@ mpl.rcParams['axes.unicode_minus']=False
 # 拦截异常
 warnings.filterwarnings(action = 'ignore', category=ConvergenceWarning)
 
-path = "../datas/iris.data"
+path = "./datas/iris.data"
 names = ['sepal length', 'sepal width', 'petal length', 'petal width', 'cla']
 df =pd.read_csv(path, header = None,names=names)
 df['cla'].value_counts()
