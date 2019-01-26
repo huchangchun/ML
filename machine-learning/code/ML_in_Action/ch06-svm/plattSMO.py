@@ -188,9 +188,76 @@ def testRbf(k1=0.1):
         predict=kernelEval.T * multiply(labelSV,alphas[svInd]) + b
         if sign(predict)!=sign(labelArr[i]): errorCount += 1    
     print("the test error rate is: %f" % (float(errorCount)/m))    
+    
+def img2Vector(filename):
+    
+    returnVect = np.zeros((1,1024))
+    fr = open(filename)
+    for i in range(32):
+        linestr = fr.readline()
+        for j in range(32):
+            returnVect[0,32*i+j] = int(linestr[j])
+    #plt.imshow(returnVect.reshape(32,32)) #print img
+    #plt.show()  
+    return returnVect
+
+def loadImages(dirName):
+    """
+    为了测试二分类，只保留了1和9,1的标签为1,9的标签为-1
+    """
+    from os import listdir
+    hwLabels = []
+    trainingFileList = listdir(dirName)
+    m = len(trainingFileList)
+    trainingMat = zeros((m, 1024))
+    for i in range(m):
+        fileNameStr = trainingFileList[i]
+        fileStr = fileNameStr.split('.')[0]
+        classNumStr = int(fileStr.split('_')[0])
+        if classNumStr == 9:
+            hwLabels.append(-1)
+        else :
+            hwLabels.append(1)
+        trainingMat[i,:] = img2Vector('%s/%s' %(dirName, fileNameStr))
+    return trainingMat, hwLabels
+def testDigits(kTup=('rbf', 10)):
+    dataArr, labelArr = loadImages('trainingDigits')
+    b, alphas = smoP(dataArr, labelArr, 200, 0.0001, 10000, kTup)
+    dataMat = mat(dataArr); labelMat = mat(labelArr).transpose() #(402,1024) (402,1)
+    svInd = nonzero(alphas.A >0)[0]
+    sVs = dataMat[svInd] #(svInd(57))
+    labelSV = labelMat[svInd]
+    print("there are %d Support Vectors" %shape(sVs)[0])
+    m,n = shape(dataMat)
+    errorCount = 0
+    for i in range(m):
+        kernelEval = kernelTrans(sVs, dataMat[i,:], kTup) #(57,1)
+        predict = kernelEval.T * multiply(labelSV, alphas[svInd]) + b #(1,1)
+        if sign(predict) != sign(labelArr[i]): errorCount += 1
+    print("the training error rate is :%f" %(float(errorCount)/m))
+    dataArr, labelArr = loadImages('testDigits')
+    errorCount = 0
+    dataMat = mat(dataArr); labelMat = mat(labelArr).transpose()
+    m,n = shape(dataMat)
+    for i in range(m):
+        kernelEval = kernelTrans(sVs,dataMat[i,:],kTup)
+        predict = kernelEval.T * multiply(labelSV, alphas[svInd]) + b
+        if sign(predict) != sign(labelArr[i]):errorCount += 1
+    print("hte test error rate is :%f" %(float(errorCount)/m))
 
 if __name__ == "__main__":
-    testRbf()
+    #test1 rbf
+    #testRbf()
     #there are 90 Support Vectors
     #the training error rate is: 0.000000
     #the test error rate is: 0.080000    
+    
+    #test2 digit recoginization
+    testDigits(('rbf', 20))
+    #there are 57 Support Vectors
+    #the training error rate is :0.000000
+    #hte test error rate is :0.005376    
+    testDigits(('rbf', 10))
+    #there are 132 Support Vectors
+    #the training error rate is :0.000000
+    #hte test error rate is :0.005376    
