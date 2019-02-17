@@ -1,5 +1,4 @@
-#encoding=utf8
-  
+ 
 from numpy import *
 
 def loadSimpData():
@@ -38,32 +37,23 @@ def buildStump(dataArr,classLabels,D):
     m,n = shape(dataMatrix)
     numSteps = 10.0; bestStump = {}; bestClasEst = mat(zeros((m,1)))
     minError = inf #init error sum, to +infinity
-    """
-    对数据集中每一个特征(第一层循环):
-        对每个步长(第二层循环)：
-           对每个不等号(第三层循环)：
-               建立一棵单层决策树并利用加权数据集对它进行测试
-               如果错误率低于minError,则将当前决策树设为最佳单层决策树
-    返回最佳单层决策树
-    """
-    for i in range(n):
-        rangeMin = dataMatrix[:,i].min();rangeMax = dataMatrix[:,i].max()
-        stepSize = (rangeMax - rangeMin) / numSteps
-        for j in range(-1, int(numSteps) + 1):
-            for inequal in ['lt','gt']:
+    for i in range(n):#loop over all dimensions
+        rangeMin = dataMatrix[:,i].min(); rangeMax = dataMatrix[:,i].max();
+        stepSize = (rangeMax-rangeMin)/numSteps
+        for j in range(-1,int(numSteps)+1):#loop over all range in current dimension
+            for inequal in ['lt', 'gt']: #go over less than and greater than
                 threshVal = (rangeMin + float(j) * stepSize)
-                predictedVals = stumpClassify(dataMatrix, i, threshVal, 
-                                             inequal)
+                predictedVals = stumpClassify(dataMatrix,i,threshVal,inequal)#call stump classify with i, j, lessThan
                 errArr = mat(ones((m,1)))
                 errArr[predictedVals == labelMat] = 0
-                weightedError = D.T * errArr 
-                print("split: dim %d, thresh %.2f, thresh ineqal: %s, the weighted error is %.3f" %(i, threshVal, inequal, weightedError))
+                weightedError = D.T*errArr  #calc total error multiplied by D
+                print("split: dim %d, thresh %.2f, thresh ineqal: %s, the weighted error is %.3f" % (i, threshVal, inequal, weightedError))
                 if weightedError < minError:
                     minError = weightedError
+                    bestClasEst = predictedVals.copy()
                     bestStump['dim'] = i
                     bestStump['thresh'] = threshVal
-                    bestStump['ineq'] = inequal  
-                    bestClasEst = predictedVals.copy()
+                    bestStump['ineq'] = inequal
     return bestStump,minError,bestClasEst
 
 
@@ -89,7 +79,7 @@ def adaBoostTrainDS(dataArr,classLabels,numIt=40):
         errorRate = aggErrors.sum()/m
         print("total error: ",errorRate)
         if errorRate == 0.0: break
-    return weakClassArr
+    return weakClassArr,aggClassEst
 
 def adaClassify(datToClass,classifierArr):
     dataMatrix = mat(datToClass)#do stuff similar to last aggClassEst in adaBoostTrainDS
@@ -107,7 +97,7 @@ def plotROC(predStrengths, classLabels):
     import matplotlib.pyplot as plt
     cur = (1.0,1.0) #cursor
     ySum = 0.0 #variable to calculate AUC
-    numPosClas = sum(array(classLabels)==1.0)
+    numPosClas = sum(array(classLabels)==1.0)#y表示真阳，x表示假阳
     yStep = 1/float(numPosClas); xStep = 1/float(len(classLabels)-numPosClas)
     sortedIndicies = predStrengths.argsort()#get sorted index, it's reverse
     fig = plt.figure()
@@ -129,9 +119,8 @@ def plotROC(predStrengths, classLabels):
     ax.axis([0,1,0,1])
     plt.show()
     print("the Area Under the Curve is: ",ySum*xStep)
-if __name__=='__main__':
-    dataArr,labelArr = loadSimpData()
-    D = mat(ones(shape=(5,1))/5)
-    buildStump(dataArr,labelArr,D)
-    classifierArr = adaBoostTrainDS(dataArr, labelArr,30)
-    adaClassify([0,0],classifierArr)
+   
+if __name__=="__main__":
+    datArr, labelArr = loadDataSet('horseColicTraining2.txt')
+    classifierArray,aggClassEst = adaBoostTrainDS(datArr,labelArr,10)
+    plotROC(aggClassEst.T,labelArr)

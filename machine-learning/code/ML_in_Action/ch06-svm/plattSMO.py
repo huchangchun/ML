@@ -26,8 +26,8 @@ def kernelTrans(X, A, kTup): #calc the kernel or transform data to a higher dime
 
 class optStruct:
     def __init__(self,dataMatIn, classLabels, C, toler, kTup):  # Initialize the structure with the parameters 
-        self.X = dataMatIn
-        self.labelMat = classLabels
+        self.X = dataMatIn  #Matrix:(402,1024)
+        self.labelMat = classLabels #Matrix:(402,1)
         self.C = C
         self.tol = toler
         self.m = shape(dataMatIn)[0]
