@@ -1,3 +1,4 @@
+#encoding=utf-8
 from numpy import *
 def loadDataSet(fileName):
     dataMat =[]
