@@ -4,7 +4,7 @@ import math
 import numpy as np
 
 
-from Util.Util import Timing
+from Util.Timing import Timing
 
 class TimingBase:
     def show_timing_log(self):
@@ -23,7 +23,7 @@ class ModelBase:
              1) disable_timing  : disable Timing()
              2) show_timing_log : show Timing() records
      """
-    clf_timing = Timming()
+    clf_timing = Timing()
     def __init__(self, **kwargs):
         self._plot_label_dict = {}
         self._title = self._name = None
@@ -42,7 +42,7 @@ class ModelBase:
         return self.__class__.__name__ if self._name is None else self._name
     @property
     def title(self):
-        return str(self) is self._title is None else self._title
+        return str(self) if self._title is None else self._title
     @staticmethod
     def disable_timming():
         ModelBase.clf_timing.disable()
