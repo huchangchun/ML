@@ -53,3 +53,29 @@ class DataUtil:
         if n_train is None:
             return x, y ,wc, features, feat_dicts, label_dict
         return (x[:n_train], y[:n_train]), (x[n_train:], y[n_train:]),wc,features,feat_dicts,label_dict
+   
+    @staticmethod
+    def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
+        if isinstance(x, list):
+            xt = map(list, zip(*x))
+        else:
+            xt = x.T
+        features = [set(feat) for feat in xt] #将获取每个维度的特征的种类
+        if wc is None:
+            wc = np.array([len(feat) >= int(continuous_rate * len(y)) for feat in features])
+        else:
+            wc = np.asarray(wc)        
+        feat_dicts = [
+        {_l:i for i, _l in enumerate(feats)} if not wc[i] else None for i,feats in enumerate(features)
+        ]
+        if not separate:
+            if np.all(~wc):
+                dtype=np.int
+            else:
+                dtype =np.float32
+            x = np.array([[feat_dicts[i][_l] if not wc[i] else _l for i,_l in enumerate(sample)] for sample in x], dtype=dtype)
+            x = (x[:,~wc].astype(np.int),x[:,wc])
+        label_dict = {l: i for i ,l in enumerate(set(y))}
+        y = np.array([label_dict[yy] for y in y], dtype=np.int8)
+        label_dict ={i: l for l, i in label_dict.items()}
+        return x, y, wc, features, feat_dicts, label_dict
