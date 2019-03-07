@@ -74,8 +74,12 @@ class DataUtil:
             else:
                 dtype =np.float32
             x = np.array([[feat_dicts[i][_l] if not wc[i] else _l for i,_l in enumerate(sample)] for sample in x], dtype=dtype)
-            x = (x[:,~wc].astype(np.int),x[:,wc])
+            
+        else:
+            x = np.array([[feat_dicts[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)] for sample in x], dtype=np.float32)
+            x = (x[:, ~wc].astype(np.int), x[:, wc]) 
+        
         label_dict = {l: i for i ,l in enumerate(set(y))}
-        y = np.array([label_dict[yy] for y in y], dtype=np.int8)
+        y = np.array([label_dict[yy] for yy in y], dtype=np.int8)
         label_dict ={i: l for l, i in label_dict.items()}
         return x, y, wc, features, feat_dicts, label_dict

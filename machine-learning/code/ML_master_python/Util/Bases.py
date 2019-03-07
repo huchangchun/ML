@@ -44,10 +44,10 @@ class ModelBase:
     def title(self):
         return str(self) if self._title is None else self._title
     @staticmethod
-    def disable_timming():
+    def disable_timing():
         ModelBase.clf_timing.disable()
     @staticmethod
-    def show_timming_log(level=2):
+    def show_timing_log(level=2):
         ModelBase.clf_timing.show_timing_log(level)
         
     #Handle animation
@@ -76,6 +76,8 @@ class ModelBase:
     def scatter3d(self, x, y, padding=0.1, title=None):
         #to do 
         pass
+    def predict(self, x, get_raw_results=False, **kwargs):
+        pass
 class ClassifierBase(ModelBase):
     """
         Base for Classifiers
@@ -83,7 +85,7 @@ class ClassifierBase(ModelBase):
            1) acc, f1_score           :Metrics
            2) _multi_clf, _multi_data :Parallelization
     """
-    clf_timming = Timing()
+    clf_timing = Timing()
     def __init__(self, **kwargs):
         super(ClassifierBase,self).__init__(**kwargs)
         self._params["animation_params"] = kwargs.get("animation_params",{})
@@ -109,4 +111,31 @@ class ClassifierBase(ModelBase):
         fp = np.sum((1-y) * y_pred)
         fn = np.sum(y * (1 - y_pred))
         return 2 * tp /( 2*tp + fn + fp)
-        
+    def get_metrics(self, metrics):
+        if len(metrics) == 0:
+            for metric in self._metrics:
+                metric.append(metric)
+            return metrics
+        for i in range(len(metrics) -1 , -1, -1):
+            metric = metrics[i]
+            if isinstance(metric, str):
+                try:
+                    metrics[i] = self._available_metrics[metric]
+                except AttributeError:
+                    metrics.pop(i)
+        return metrics
+    
+    @clf_timing.timeit(level=1, prefix="[API] ")
+    def evaluate(self, x, y, metrics=None, tar=0, prefix="Acc", **kwargs):
+        if metrics is None:
+            metrics = ["acc"]
+        self.get_metrics(metrics)
+        logs, y_pred = [], self.predict(x, **kwargs)
+        y = np.asarray(y)
+        if y.ndim == 2:
+            y = np.argmax(y, axis=1)
+        for metric in metrics:
+            logs.append(metric(y, y_pred))
+        if isinstance(tar, int):
+            print(prefix + ": {:12.8}".format(logs[tar]))
+        return logs
