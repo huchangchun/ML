@@ -3,6 +3,7 @@ import numpy as np
 import time
 import os
 import sys
+import matplotlib.pyplot as plt
 root_path = os.path.abspath("../")
 if root_path not in sys.path:
     sys.path.append(root_path)
@@ -81,8 +82,33 @@ class MultinomialNB(NaiveBayes):
             m_arg[mask], m_probability[mask] = i, p[mask]
         if not get_raw_result:
             return np.array([self.label_dict[arg] for arg in m_arg])
-        return m_probability        
-        
+        return m_probability    
+    
+    def visualize(self, save=False):
+        colors = plt.cm.Paired([i /len(self.label_dict) for i in range(len(self.label_dict))])
+        colors = {cat: color for cat, color in zip(self.label_dict.values(), colors)}
+        rev_feat_dicts = [{val: key for key,val in feat_dict.items()} for feat_dict in self._feat_dicts]
+        for j in range(len(self._n_possibilities)):#遍历每个维度
+            rev_dict = rev_feat_dicts[j] #每个维度的字符字典
+            sj = self._n_possibilities[j] #该维度的特征数量
+            tmp_x = np.arange(1, sj+1)
+            title = "$j = {}; S_j = {}$".format(j + 1, sj)
+            plt.figure()
+            plt.title(title)
+            for c in range(len(self.label_dict)):#两个类别,plt.bar(left,height,width,..)
+                plt.bar(tmp_x - 0.35 * c, self._data[j][c, :],width=0.35,
+                        facecolor=colors[self.label_dict[c]], edgecolor="white",
+                                         label=u"class: {}".format(self.label_dict[c]))
+            #xticks(ticks, [labels], **kwargs) 
+            plt.xticks([i for i in range(sj + 2)], [""] + [rev_dict[i] for i in range(sj)] + [""])
+            plt.ylim(0, 0.6)
+            plt.legend()
+            if not save:
+                plt.show()
+            else:
+                plt.savefig("d{}".format(j + 1))
+                
+                
 if __name__=="__main__":
     train_num = 6000
     (x_train, y_train), (x_test, y_test) = DataUtil.get_dataset("mushroom","../Data/mushroom.txt", n_train=train_num,tar_idx=0)
@@ -101,4 +127,4 @@ if __name__=="__main__":
           )  
     )   
     nb.show_timing_log()
-    #nb.visualize()
+    nb.visualize()
