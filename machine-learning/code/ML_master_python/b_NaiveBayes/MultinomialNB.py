@@ -67,22 +67,7 @@ class MultinomialNB(NaiveBayes):
             rs *= self._data[d][i][xx]
         return rs * self._p_category[i] #条件概率乘上先验概率得到后验概率
     
-    @MultinomialNBTiming.timeit(level=1, prefix="[API] ")
-    def predict(self, x, get_raw_result=False, **kwargs):
-        if isinstance(x, np.ndarray):
-            x = x.tolist()
-        else:
-            x = [xx[:] for xx in x]
-        x = self._transfer_x(x)
-        
-        m_arg, m_probability = np.zeros(len(x), dtype=np.int8), np.zeros(len(x))
-        for i in range(len(self._cat_counter)):
-            p = self._func(x,i)
-            mask = p > m_probability
-            m_arg[mask], m_probability[mask] = i, p[mask]
-        if not get_raw_result:
-            return np.array([self.label_dict[arg] for arg in m_arg])
-        return m_probability    
+   
     
     def visualize(self, save=False):
         colors = plt.cm.Paired([i /len(self.label_dict) for i in range(len(self.label_dict))])

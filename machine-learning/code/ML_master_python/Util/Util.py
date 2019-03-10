@@ -27,7 +27,7 @@ class DataUtil:
                     x.append(sample.strip().split(","))
             elif name == "bank1.0":
                 for sample in file:
-                    sample = sample.replace('"',"")
+                    sample = sample.replace('"',"")#双引号替换为空
                     x.append(list(map(lambda c: c.strip(), sample.split(";"))))
             else:
                 raise NotImplementedError
@@ -66,7 +66,7 @@ class DataUtil:
         else:
             wc = np.asarray(wc)        
         feat_dicts = [
-        {_l:i for i, _l in enumerate(feats)} if not wc[i] else None for i,feats in enumerate(features)
+        {_l:i for i, _l in enumerate(feats)} if not wc[i] else None for i,feats in enumerate(features) #如果是连续型特征则设置为None
         ]
         if not separate:
             if np.all(~wc):
@@ -77,7 +77,7 @@ class DataUtil:
             
         else:
             x = np.array([[feat_dicts[i][_l] if not wc[i] else _l for i, _l in enumerate(sample)] for sample in x], dtype=np.float32)
-            x = (x[:, ~wc].astype(np.int), x[:, wc]) 
+            x = (x[:, ~wc].astype(np.int), x[:, wc]) #将x按离散和连续特征划分
         
         label_dict = {l: i for i ,l in enumerate(set(y))}
         y = np.array([label_dict[yy] for yy in y], dtype=np.int8)
