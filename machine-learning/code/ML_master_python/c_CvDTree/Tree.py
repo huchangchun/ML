@@ -15,6 +15,17 @@ class CvDBase(ClassifierBase):
     CvDBaseTiming = Timing()
     def __init__(self, whether_continuous=None, max_depth=None, node=None, **kwargs):
         super(CvDBase, self).__init__(**kwargs)
+        """
+        self.nodes :记录所有Node的列表
+        self.layers ： 主要用于CART剪枝的属性
+        self.roots  
+        self.max_depth  ：决策树的最大树深
+        self.root  ：根节点
+        self.feature_sets 记录可选特征维度的列表
+        self.prune_alpha 
+        self.y_transformer = None
+        self.wheter_continuous = whether_continuous
+        """
         self.nodes = []
         self.layers = []
         self.roots = []
