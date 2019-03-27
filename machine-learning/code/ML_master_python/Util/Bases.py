@@ -111,6 +111,38 @@ class ClassifierBase(ModelBase):
         fp = np.sum((1-y) * y_pred)
         fn = np.sum(y * (1 - y_pred))
         return 2 * tp /( 2*tp + fn + fp)
+ 
+    def _multi_data(self, x, task, kwargs, stack=np.hstack, target="single"):
+        if target != "parallel":
+            return task((x,self,1))
+        n_cores = kwargs.get("n_cores",2)
+        n_cores = multiprocessing.cpu_count() if n_cores <= 0 else n_cores
+        if n_cores == 1:
+            matrix = task((x, self,n_cores))
+        else:
+            pool = Pool(processes=n_cores)
+            batch_size = int(len(x) / n_cores)
+            batch_base, batch_data, cursor = [], [], 0
+            x_dim = x.shape[1]
+            for i in range(n_cores):
+                if i == n_cores - 1:
+                    batch_data.append(x[cursor:])
+                    batch_base.append(multiprocessing.Array(ctypes.c_float, (len(x) - cursor) * x_dim))
+                else:
+                    batch_data.append(x[cursor:cursor + batch_size])
+                    batch_base.append(multiprocessing.Array(ctypes.c_float, batch_size * x_dim))
+                cursor += batch_size
+            shared_arrays = [
+                np.ctypeslib.as_array(shared_base.get_obj()).reshape(-1, x_dim)
+                for shared_base in batch_base
+            ]
+            for i, data in enumerate(batch_data):
+                shared_arrays[i][:] = data
+            matrix = stack(
+                pool.map(task, ((x, self, n_cores) for x in shared_arrays))
+            )
+        return matrix.astype(np.float32)
+
     def get_metrics(self, metrics):
         if len(metrics) == 0:
             for metric in self._metrics:
@@ -131,6 +163,9 @@ class ClassifierBase(ModelBase):
             metrics = ["acc"]
         self.get_metrics(metrics)
         logs, y_pred = [], self.predict(x, **kwargs)
+        print(x)
+        print("y",y)
+        print("p",y_pred)
         y = np.asarray(y)
         if y.ndim == 2:
             y = np.argmax(y, axis=1)

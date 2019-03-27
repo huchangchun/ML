@@ -4,10 +4,71 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from math import pi, sqrt ,ceil
 
+class Util:
+    @staticmethod
+    def callable(obj):
+        _str_obj = str(obj)
+        if callable(obj):
+            return True
+        if "<" not in _str_obj and ">" not in _str_obj:
+            return False
+        if _str_obj.find("function") >= 0 or _str_obj.find("staticmethod") >= 0:
+            return True
 
+    @staticmethod
+    def freeze_graph(sess, ckpt, output):
+        print("Loading checkpoint...")
+        saver = tf.train.Saver()
+        saver.restore(sess, ckpt)
+        print("Writing graph...")
+        if not os.path.isdir("_Cache"):
+            os.makedirs("_Cache")
+        _dir = os.path.join("_Cache", "Model")
+        saver.save(sess, _dir)
+        graph_io.write_graph(sess.graph, "_Cache", "Model.pb", False)
+        print("Freezing graph...")
+        freeze_graph.freeze_graph(
+            os.path.join("_Cache", "Model.pb"),
+            "", True, os.path.join("_Cache", "Model"),
+            output, "save/restore_all", "save/Const:0", "Frozen.pb", True, ""
+        )
+        print("Done")
+
+    @staticmethod
+    def load_frozen_graph(graph_dir, fix_nodes=True, entry=None, output=None):
+        with gfile.FastGFile(graph_dir, "rb") as file:
+            graph_def = tf.GraphDef()
+            graph_def.ParseFromString(file.read())
+            if fix_nodes:
+                for node in graph_def.node:
+                    if node.op == 'RefSwitch':
+                        node.op = 'Switch'
+                        for index in range(len(node.input)):
+                            if 'moving_' in node.input[index]:
+                                node.input[index] = node.input[index] + '/read'
+                    elif node.op == 'AssignSub':
+                        node.op = 'Sub'
+                        if 'use_locking' in node.attr:
+                            del node.attr['use_locking']
+            tf.import_graph_def(graph_def, name="")
+            if entry is not None:
+                entry = tf.get_default_graph().get_tensor_by_name(entry)
+            if output is not None:
+                output = tf.get_default_graph().get_tensor_by_name(output)
+            return entry, output
 
 class DataUtil:
     naive_sets = {"mushroom", "balloon", "mnist", "cifar", "test"}
+    @staticmethod
+    def gen_xor(size=100, scale=1, one_hot=True):
+        x = np.random.randn(size) * scale
+        y = np.random.randn(size) * scale
+        z = np.zeros((size, 2))
+        z[x * y >= 0, :] = [0, 1]
+        z[x * y < 0, :] = [1, 0]
+        if one_hot:
+            return np.c_[x, y].astype(np.float32), z
+        return np.c_[x, y].astype(np.float32), np.argmax(z, axis=1)
     
     @staticmethod
     def is_naive(name):

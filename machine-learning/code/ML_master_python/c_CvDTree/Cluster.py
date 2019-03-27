@@ -11,6 +11,13 @@ from Util.Metas import TimingMeta
 
 class Cluster(metaclass=TimingMeta):
     def __init__(self, x, y, sample_weight=None, base = 2):
+        """
+        self._x, self._y 数据输入和标签
+        self._counters 标签的数据统计
+        self._sample_weight 权重
+        self._con_chaos_cache = self._ent_cache = self._gini_cache  
+        self._base = base
+        """
         self._x, self._y = x.T, y
         if sample_weight is None:
             self._counters = np.bincount(self._y)
@@ -32,7 +39,7 @@ class Cluster(metaclass=TimingMeta):
         if ent is None:
             ent = self._counters
         #h(y) = -sum(p_k * log(p_k))
-        ent_cache = max(eps, _sum([c / y_len * math.log(c / y_len, self._base) if c != 0 else 0 for c in ent ]))
+        ent_cache = max(eps, -sum([c / y_len * math.log(c / y_len, self._base) if c != 0 else 0 for c in ent ]))
         if ent is None:
             self._ent_cache = ent_cache
         return ent_cache
@@ -48,6 +55,47 @@ class Cluster(metaclass=TimingMeta):
             self._gini_cache = gini_cache
         return gini_cache
     
+    
+    def con_chaos(self, idx, criterion="ent", features=None):
+        if criterion == "ent":
+            method = lambda cluster: cluster.ent()
+        elif criterion == "gini":
+            method = lambda cluster: cluster.gini()
+        else:
+            raise NotImplementedError("Conditional info criterion '{}' not defined".format(criterion))
+        data = self._x[idx]
+        if features is None:
+            features = np.unique(data)
+        tmp_labels = [data==feature for feature in features]
+        self._con_chaos_cache = [np.sum(label) for label in tmp_labels]
+        label_lst = [self._y[label] for label in tmp_labels]
+        rs, chaos_lst, xt = 0, [],self._x.T
+        append = chaos_lst.append
+        for data_label, tar_label in zip(tmp_labels, label_lst):
+            tmp_data = xt[data_label]
+            if self._sample_weight is None:
+                chaos = method(Cluster(tmp_data, tar_label, base=self._base))
+            else:
+                new_weights = self._sample_weight[data_label]
+                chaos = method(Cluster(tmp_data, tar_label, new_weights / np.sum(new_weights), base=self._base))
+            rs += len(tmp_data) / len(data) * chaos
+            append(chaos)
+        return rs, chaos_lst
+    #计算信息熵信息增益
+    def info_gain(self, idx, criterion="ent", get_chaos_lst=False, features=None):
+        if criterion in ("ent","ratio"):
+            con_chaos,chaos_lst = self.con_chaos(idx, criterion="ent",features=features)
+            gain = self.ent() - con_chaos
+            if criterion == "ratio":
+                gain /= self.ent(self._con_chaos_cache)
+        elif criterion == "gini":
+            con_chaos, chaos_lst = self.con_chaos(idx, criterion="gini", features=features)
+            gain = self.gini() - con_chaos
+        else:
+            raise NotImplementedError("Info_gain criterion '{}' not defined".format(criterion))
+        return (gain, chaos_lst) if get_chaos_lst else gain
+    
+        
     #计算条件熵h(y|A)和条件基尼g(y|A)
     def bin_con_chaos(self, idx, tar, criterion="gini", continuous=False):
         """
@@ -83,6 +131,7 @@ class Cluster(metaclass=TimingMeta):
                 new_weights = self._sample_weight[label_mask]
                 chaos = method(Cluster(tmp_data, tar_label, new_weights / np.sum(new_weights), base=self._base))
             rs += len(tmp_data) / len(data) * chaos
+            append(chaos)
         return rs, chaos_lst
     
     #计算信息增益 
