@@ -140,6 +140,9 @@ class CvDNode(metaclass=TimingMeta):
             if child is not None:
                 child.mark_pruned()
     def update_layers(self):
+        """
+        根据Node的深度，在self.layers对应位置的列表中记录自己
+        """
         self.tree.layers[self._depth].append(self)
         for node in sorted(self.children):
             node = self.children[node]

@@ -40,7 +40,7 @@ class CvDBase(ClassifierBase):
         
         self._params["alpha"] = kwargs.get("alpha", None)
         self._params["eps"] = kwargs.get("eps", 1e-8)
-        self._params["cv_rate"] = kwargs.get("cv_rate", False)
+        self._params["cv_rate"] = kwargs.get("cv_rate", 0.2)
         self._params["train_only"] = kwargs.get("train_only", False)
         self._params["feature_bound"] = kwargs.get("feature_bound", None)
     def feed_data(self, x, continuous_rate=0.2):
@@ -81,7 +81,7 @@ class CvDBase(ClassifierBase):
         self.prune_alpha = alpha if alpha is not None else x.shape[1] /2
         if not train_only and self.root.is_cart:
             train_num = int(len(x) * (1-cv_rate))
-            indices = np.ramdom.permtation(np.arange(len(x)))
+            indices = np.random.permutation(np.arange(len(x)))
             train_indices = indices[:train_num]
             test_indices = indices[train_num:]
             if sample_weight is not None:
@@ -105,11 +105,12 @@ class CvDBase(ClassifierBase):
     @CvDBaseTiming.timeit(level=1, prefix="[API] ")
     def reduce_nodes(self):
         pop = self.nodes.pop
-        for i in range(len(self.nodes) -1 , -1, -1):
+        for i in range(len(self.nodes) -1 , -1, -1): #反向pop
             if self.nodes[i].pruned:
                 pop(i)
     @CvDBaseTiming.timeit(level=1, prefix="[API] ") 
     def _update_layers(self):
+        #根据整棵决策树的高度，在self.layers里面放相应数量的列表
         self.layers = [[] for _ in range(self.root.height)]
         self.root.update_layers()
     @CvDBaseTiming.timeit(level=1, prefix="[API] ")
@@ -117,9 +118,43 @@ class CvDBase(ClassifierBase):
         self._update_layers()
         tmp_nodes = []
         append = tmp_nodes.append
-        pass
+        #更新完决策树每一层的Node之后，从后往前向tmpnode中加Node
+        for node_lst in self.layers[::-1]:
+            for node in node_lst[::-1]:
+                if node.category is None:
+                    append(node)
+        old = np.array([node.cost() + self.prune_alpha * len(node.leafs) for node in tmp_nodes])
+        new = np.array([node.cost(pruned=True) + self.prune_alpha for node in tmp_nodes])
+        mask = old >=new
+        while True:
+            if self.root.height == 1:
+                break
+            p = np.argmax(mask)  # type: int
+            if mask[p]:
+                tmp_nodes[p].prune()
+                for i, node in enumerate(tmp_nodes):
+                    if node.affected:
+                        old[i] = node.cost() + self.prune_alpha * len(node.leafs)
+                        mask[i] = old[i] >= new[i]
+                        node.affected = False
+                for i in range(len(tmp_nodes) - 1, -1, -1):
+                    if tmp_nodes[i].pruned:
+                        tmp_nodes.pop(i)
+                        old = np.delete(old, i)
+                        new = np.delete(new, i)
+                        mask = np.delete(mask, i)
+            else:
+                break
+        self.reduce_nodes()
+                
+         
     @CvDBaseTiming.timeit(level=1, prefix="[API] ")
     def prune(self, x_cv, y_cv, weights):
+        """
+        如果是cart则调用cart剪枝
+        在交叉验证下选择出最优的决策树
+        
+        """
         if self.root.is_cart:
             if x_cv is not None and y_cv is not None:
                 self._cart_prune()
@@ -132,7 +167,29 @@ class CvDBase(ClassifierBase):
                 self._prune()
                 
     
-   
+    @CvDBaseTiming.timeit(level=1)
+    def _cart_prune(self):
+        self.root.cut_tree()
+        tmp_nodes = [node for node in self.nodes if node.category is None]
+        thresholds = np.array([node.get_threshold() for node in tmp_nodes])
+        while True:
+            root_copy = deepcopy(self.root)
+            self.roots.append(root_copy)
+            if self.root.height == 1:
+                break
+            p = np.argmin(thresholds)  # type: int
+            tmp_nodes[p].prune()
+            for i, node in enumerate(tmp_nodes):
+                if node.affected:
+                    thresholds[i] = node.get_threshold()
+                    node.affected = False
+            pop = tmp_nodes.pop
+            for i in range(len(tmp_nodes) - 1, -1, -1):
+                if tmp_nodes[i].pruned:
+                    pop(i)
+                    thresholds = np.delete(thresholds, i)
+        self.reduce_nodes()
+            
     @CvDBaseTiming.timeit(level=1, prefix="[API] ")
     def predict(self, x, get_raw_results=False, **kwargs):
         return self.y_transformer[self._multi_data(x, cvd_task, kwargs)]

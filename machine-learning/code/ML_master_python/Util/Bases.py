@@ -3,7 +3,7 @@ import time
 import math
 import numpy as np
 
-
+import matplotlib.pyplot as plt
 from Util.Timing import Timing
 
 class TimingBase:
@@ -174,3 +174,72 @@ class ClassifierBase(ModelBase):
         if isinstance(tar, int):
             print(prefix + ": {:12.8}".format(logs[tar]))
         return logs
+    def visualize2d(self, x, y, padding=0.1, dense=200, title=None,
+                    show_org=False, draw_background=True, emphasize=None, extra=None, **kwargs):
+        axis, labels = np.asarray(x).T, np.asarray(y)
+
+        print("=" * 30 + "\n" + str(self))
+        nx, ny, padding = dense, dense, padding
+        x_min, x_max = np.min(axis[0]), np.max(axis[0])
+        y_min, y_max = np.min(axis[1]), np.max(axis[1])
+        x_padding = max(abs(x_min), abs(x_max)) * padding
+        y_padding = max(abs(y_min), abs(y_max)) * padding
+        x_min -= x_padding
+        x_max += x_padding
+        y_min -= y_padding
+        y_max += y_padding
+
+        def get_base(_nx, _ny):
+            _xf = np.linspace(x_min, x_max, _nx)
+            _yf = np.linspace(y_min, y_max, _ny)
+            n_xf, n_yf = np.meshgrid(_xf, _yf)
+            return _xf, _yf, np.c_[n_xf.ravel(), n_yf.ravel()]
+
+        xf, yf, base_matrix = get_base(nx, ny)
+
+        t = time.time()
+        z = self.predict(base_matrix, **kwargs).reshape((nx, ny))
+        print("Decision Time: {:8.6} s".format(time.time() - t))
+
+        print("Drawing figures...")
+        xy_xf, xy_yf = np.meshgrid(xf, yf, sparse=True)
+        if labels.ndim == 1:
+            if not self._plot_label_dict:
+                self._plot_label_dict = {c: i for i, c in enumerate(set(labels))}
+            dic = self._plot_label_dict
+            n_label = len(dic)
+            labels = np.array([dic[label] for label in labels])
+        else:
+            n_label = labels.shape[1]
+            labels = np.argmax(labels, axis=1)
+        colors = plt.cm.rainbow([i / n_label for i in range(n_label)])[labels]
+
+        if title is None:
+            title = self.title
+
+        if show_org:
+            plt.figure()
+            plt.scatter(axis[0], axis[1], c=colors)
+            plt.xlim(x_min, x_max)
+            plt.ylim(y_min, y_max)
+            plt.show()
+
+        plt.figure()
+        plt.title(title)
+        if draw_background:
+            plt.pcolormesh(xy_xf, xy_yf, z, cmap=plt.cm.Pastel1)
+        else:
+            plt.contour(xf, yf, z, c='k-', levels=[0])
+        plt.scatter(axis[0], axis[1], c=colors)
+        if emphasize is not None:
+            indices = np.array([False] * len(axis[0]))
+            indices[np.asarray(emphasize)] = True
+            plt.scatter(axis[0][indices], axis[1][indices], s=80,
+                        facecolors="None", zorder=10)
+        if extra is not None:
+            plt.scatter(*np.asarray(extra).T, s=80, zorder=25, facecolors="red")
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        plt.show()
+
+        print("Done.")    

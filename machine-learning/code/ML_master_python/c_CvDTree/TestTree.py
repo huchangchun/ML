@@ -37,7 +37,7 @@ def main(visualize=True):
     #x, y = DataUtil.get_dataset("test", "../_Data/test.txt")
     fit_time = time.time()
     tree = CartTree(whether_continuous=[False] * 4)
-    tree.fit(x, y, train_only=True)
+    tree.fit(x, y, train_only=False)
     fit_time = time.time() - fit_time
     if visualize:
         tree.view()
