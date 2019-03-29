@@ -69,7 +69,24 @@ class DataUtil:
         if one_hot:
             return np.c_[x, y].astype(np.float32), z
         return np.c_[x, y].astype(np.float32), np.argmax(z, axis=1)
-    
+    @staticmethod
+    def get_one_hot(y, n_class):
+        one_hot = np.zeros([len(y), n_class])
+        one_hot[range(len(y)),y] = 1
+        return one_hot
+    @staticmethod
+    def gen_spiral(size=50, n=7, n_class=7, scale=4, one_hot=True):
+        xs = np.zeros((size * n, 2), dtype=np.float32)
+        ys = np.zeros(size * n, dtype=np.int8)
+        for i in range(n):
+            ix = range(size * i,size * (i+1))
+            r = np.linspace(0.0, 1, size+1)[1:]
+            t = np.linspace(2*i*pi/n, 2*(i +scale) * pi/n, size) + np.random.random(size=size)*0.1
+            xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
+            ys[ix] = i % n_class
+        if not one_hot:
+            return xs,ys
+        return xs, DataUtil.get_one_hot(ys, n_class)
     @staticmethod
     def is_naive(name):
         for naive_dataset in DataUtil.naive_sets:
@@ -117,6 +134,7 @@ class DataUtil:
    
     @staticmethod
     def quantize_data(x, y, wc=None, continuous_rate=0.1, separate=False):
+        
         if isinstance(x, list):
             xt = map(list, zip(*x))
         else:
