@@ -54,7 +54,7 @@ class NaiveNN(ClassifierBase):
         添加层
         """
         current, nxt = args
-        self._add_params(current, nxt)
+        self._add_params((current, nxt))
         self._current_dimension = nxt
         self._layers.append(layer)
         
@@ -62,11 +62,11 @@ class NaiveNN(ClassifierBase):
     def _get_activations(self, x):
         """
         activations []存放每一层的激活值
-        先计算出第一层神经元的输出，然后后面的神经元输出通过上一层的输出经过线性变换和激活函数得出
+        先计算出第一层神经元的输出，然后后面的神经元激活值通过上一层的输出经过线性变换和激活函数得出
         """
-        activations = [self._layers[0].activate(x, self._weights[0],self._layers[0]._bias[0])]
+        activations = [self._layers[0].activate(x, self._weights[0],self._bias[0])]
         for i, layer in enumerate(self._layers[1:]):
-            activations.append(layer.activate(activations[-1], self._weight[i + 1], self._bias[i+1]))
+            activations.append(layer.activate(activations[-1], self._weights[i + 1], self._bias[i+1]))
         return activations
     
     @NaiveNNTiming.timeit(level=1)
@@ -80,6 +80,13 @@ class NaiveNN(ClassifierBase):
         self._b_optimizer = opt_fac.get_optimizer_by_name(optimizer, self._bias, lr, epoch)
     @NaiveNNTiming.timeit(level=1)
     def _opt(self, i, _activation, _delta):
+        """
+        W_(i-1)' = v^T_(i-1) * delta_(i)
+        W_(i-1):   n_(i-1) X n_(i) 
+        v^T_(i-1): N X n_(i-1)
+        delta_(i) :N X n_(i-1)
+        b_(i-1)' = sum(deleta_(i))
+        """
         self._weights[i] += self._w_optimizer.run(i, _activation.T.dot(_delta))
         self._bias[i] += self._b_optimizer.run(i, np.sum(_delta, axis=0, keepdims=True))
       
@@ -93,7 +100,7 @@ class NaiveNN(ClassifierBase):
         添加隐层
         
         """
-        if self._layers is None:
+        if  not self._layers:
             self._layers,self._current_dimension = [layer], layer.shape[1]
             self._add_params(layer.shape)
         else:# def _add_layer(self, layer, *args):
@@ -114,10 +121,21 @@ class NaiveNN(ClassifierBase):
     
     
     
-class NN():
+class NN(NaiveNN):
     NNTiming = Timing()
     def __init__(self, **kwargs):
-        pass
+        super(NN, self).__init__(** kwargs)
+        self._available_metrics = {
+            key: value for key, value in zip(["acc", "f1-score"], [NN.acc, NN.f1_score])
+        }
+        self._metrics, self._metric_names, self._logs = [], [], {}
+        self.verbose = None
+        self._params["batch_size"] = kwargs.get("batch_size", 256)
+        self._params["train_rate"] = kwargs.get("train_rate", None)
+        self._params["metrics"] = kwargs.get("metrics", None)
+        self._params["record_period"] = kwargs.get("record_period", 100)
+        self._params["verbose"] = kwargs.get("verbose", 1)
+        
     @NNTiming.timeit(level=1)
     def _get_prediction(self, x, name=None, batch_size=1e6, verbose=None):
         if verbose is None:
@@ -205,6 +223,8 @@ class NN():
             metrics = self._params["metrics"]
         if record_period is None:
             record_period = self._params["record_period"]
+        if verbose is None:
+            verbose = self._params["verbose"]
         self.verbose = verbose
         self._init_optimizers(optimizer, lr, epoch)
         layer_width = len(self._layers)
@@ -220,7 +240,7 @@ class NN():
             shuffle_suffix = np.random.permutation(len(x))
             x, y = x[shuffle_suffix], y[shuffle_suffix]
             x_train, y_train = x[:train_len], y[:train_len]
-            x_test, y_test = x[train_len:], y[:train_len:]
+            x_test, y_test = x[train_len:], y[train_len:]
         else:
             x_train = x_test = x
             y_train = y_test = y
@@ -231,7 +251,7 @@ class NN():
         c = np.argmax(a,axis=1)
         c = array([3], dtype=int64)
         """
-        y_train_class = np.argmax(y, axis=1)
+        y_train_classes = np.argmax(y_train, axis=1)
         y_test_classes = np.argmax(y_test, axis=1)
         
         train_len = len(x_train)
@@ -268,16 +288,18 @@ class NN():
                 """
                 反向传播 :bp
                 先求出第一个局部梯度，然后后面的梯度和前一个梯度有关系 &(i) = &(i+1) * w_i^T . u'(i)
+            
                 更新w,b :opt
                 """
                 deltas = [self._layers[-1].bp_first(y_batch, activations[-1])]
-                for i in range(-1, -len(activations), -1):
+                for i in range(-1, -len(activations), -1):#i=-1,-2, step=-1
                     deltas.append(
                     self._layers[i - 1].bp(deltas[-1], self._weights[i], activations[i - 1])
-                    )
-                for i in range(layer_width - 1, 0, -1):
+                    )#
+                for i in range(layer_width - 1, 0, -1):#i=2,1 ,step=-1
                     self._opt(i, activations[i - 1], deltas[layer_width -i - 1])
-                self._opt(0, x_batch, deltas[-1])
+                #第一层对应的是输入 
+                self._opt(0, x_batch, deltas[-1])#对应的是第一个隐藏层， W_(i-1)' = v^T_(i-1) * delta_(i) delta[0]是损失层，delta[-1]是第一层 
                 if self.verbose >= NNVerbose.EPOCH:
                     if sub_bar.update() and self.verbose >= NNVerbose.METRICS_DETAIL:
                         self._append_log(x_train, y_train, y_train_classes, "train")
@@ -299,9 +321,9 @@ class NN():
                     
     def draw_logs(self):
         metrics_log, loss_log = {},{}
-        for key, value in sorted(self._logs.item()):
-            metrics_log[k],loss_log[key] = value[:-1], value[-1]
-        for i, name in enumerate(sorted(self._metrics_names)):
+        for key, value in sorted(self._logs.items()):
+            metrics_log[key],loss_log[key] = value[:-1], value[-1]
+        for i, name in enumerate(sorted(self._metric_names)):
             plt.figure()
             plt.title("Metric Type:{}".format(name))
             for key, log in sorted(metrics_log.items()):
@@ -312,7 +334,7 @@ class NN():
             plt.close()
         plt.figure()
         plt.title("Cost")
-        for key, loss in enumerate(loss_log.items()):
+        for key, loss in sorted(loss_log.items()):
             xs = np.arange(len(loss)) + 1
             plt.plot(xs, loss, label="Data Type:{}".format(key))
         plt.legend()

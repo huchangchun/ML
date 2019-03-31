@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Util.Timing import Timing
 
+import tensorflow as tf
+
 class TimingBase:
     def show_timing_log(self):
         pass
@@ -79,6 +81,7 @@ class ModelBase:
     def predict(self, x, get_raw_results=False, **kwargs):
         pass
 class ClassifierBase(ModelBase):
+    
     """
         Base for Classifiers
         Static method :
@@ -243,3 +246,32 @@ class ClassifierBase(ModelBase):
         plt.show()
 
         print("Done.")    
+class TFClassifierBase(ClassifierBase):
+    """
+    Tensorflow classifier framework
+    Implemented tensorflow ver.  metrics
+    """
+    
+    cls_timing = Timing()
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._tfx = self._tfy = None
+        self._y_pred_raw = self._y_pred = None
+        self._sess = tf.Session()
+    
+    @clf_timing.timeit(level=2, prefix="[Core] ")
+    def _batch_training(self, x, y, batch_size, train_repeat, *args):
+        loss, train_step, *args = args
+        epoch_cost = 0
+        for i in range(train_repeat):
+            if train_repeat != 1:
+                batch = np.random.choice(len(x), batch_size)
+                x_batch, y_batch = x[batch], y[batch]
+            else:
+                x_batch, y_batch = x, y
+            epoch_cost += self._sess.run([loss, train_step],{
+                self._tfx: x_batch, self._tfy: y_batch
+            })[0]
+            self._batch_work(i, *args)
+        return epoch_cost / train_repeat

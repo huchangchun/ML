@@ -34,8 +34,14 @@ class Layer:
     def activate(self, x, w, bias, predict=False):
         return self._activate(x.dot(w) + bias, predict)
     @LayerTiming.timeit(level=1, prefix="[Core] ")
-    def bp(self, prev_delta, w, y):
-        return prev_delta.dot(w.T) * self.derivative(y)
+    def bp(self, prev_delta, w, u):
+        """
+        求局部梯度
+        delta_(i) = delta_(i+1) * w_(i)^T * v(u(i))'
+        v = Activation(u(i))
+        u(i) = v_i-1 X W_(i-1) + b_i
+        """
+        return prev_delta.dot(w.T) * self.derivative(u)
     
 #Activation Layers
 class Sigmoid(Layer):
@@ -147,7 +153,7 @@ class CostLayer(Layer):
         if diff:
             return y * (1 - y)
         exp_y = CostLayer.safe_exp(y)
-        return exp_y /np.sum(exp_y, exis=1, keepdims=True)
+        return exp_y /np.sum(exp_y, axis=1, keepdims=True)
     @staticmethod
     def _sigmoid(y, diff=False):
         if diff:
@@ -182,4 +188,4 @@ class CostLayer(Layer):
     def _cross_entropy(y, y_pred, diff=True):
         if diff:
             return -y / y_pred + (1 - y) / (1 - pred)
-        return np.average(-y * np.log(np.maximum(y_pred, 1e-12)) - (1 - y) * np.log(np.maximum(y_pred, 1e-12)))
+        return np.average(-y * np.log(np.maximum(y_pred, 1e-12)) - (1 - y) * np.log(np.maximum(1 - y_pred, 1e-12)))
