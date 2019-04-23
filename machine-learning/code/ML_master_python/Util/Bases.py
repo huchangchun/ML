@@ -98,14 +98,31 @@ class ClassifierBase(ModelBase):
     
     @staticmethod
     def acc(y, y_pred, weights=None):
+ 
         y, y_pred = np.asarray(y), np.asarray(y_pred)
         if weights is not None:
             return np.average((y == y_pred) * weights)
         return np.average(y == y_pred) #average([False,True,True]) = 0.66666
- 
+    @staticmethod 
+    def precision(y, y_pred):
+        """
+        pre=tp/(tp+fp)
+        """
+        tp = np.sum(y * y_pred)
+        if tp == 0:
+            return .0
+        fp = np.sum((1 -y) * y_pred)
+        return tp / (tp + fp)
+        
     #noinspection PyTypeChecker
     def f1_score(y, y_pred):
         """
+        真阳性（TP）: 预测为正， 实际也为正
+        假阳性（FP）: 预测为正， 实际为负
+        假阴性（FN）: 预测为负，实际为正
+        真阴性（TN）: 预测为负， 实际也为负
+        如：y  [1, 1, 1, 0, 0, 1]
+        y_pred [0, 1, 0, 1, 0, 1]
         f1=2TP/(2*TP + FN + FP)
         """
         tp = np.sum(y * y_pred)
@@ -252,7 +269,7 @@ class TFClassifierBase(ClassifierBase):
     Implemented tensorflow ver.  metrics
     """
     
-    cls_timing = Timing()
+    clf_timing = Timing()
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -1,0 +1,13 @@
+*.pyc
+*.rar
+Data/*
+ratioAnalysis/*
+Model/pic/*
+Model/__pycache__//
+checkpoints/*
+Model/__pycache__/*
+Util/__pycache__/*
+ipynb_checkpoints
+.ipynb_checkpoints
+.ipynb_checkpoint
+*.ipynb
